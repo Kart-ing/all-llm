@@ -1,0 +1,16 @@
+name = "always-llm"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Set your OpenRouter API key as a secret:
+#   wrangler secret put OPENROUTER_API_KEY
+# You can also override the Referer/Title headers sent to OpenRouter.
+[vars]
+SITE_URL = "https://github.com/Kart-ing/all-llm"
+SITE_NAME = "always-llm"
+
+# v0.2 — persist cooldown state across isolates.
+# [[kv_namespaces]]
+# binding = "COOLDOWN_KV"
+# id = "replace-with-your-kv-id"
