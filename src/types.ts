@@ -25,9 +25,18 @@ export interface ChatCompletionRequest {
   [key: string]: unknown;
 }
 
+export interface ModelArchitecture {
+  modality?: string;             // e.g. "text->text", "text+image->text+audio"
+  input_modalities?: string[];   // e.g. ["text"], ["text", "image"]
+  output_modalities?: string[];  // e.g. ["text"], ["text", "audio"]
+  tokenizer?: string;
+  instruct_type?: string | null;
+}
+
 export interface OpenRouterModel {
   id: string;
   name?: string;
+  description?: string;
   pricing?: {
     prompt?: string;
     completion?: string;
@@ -35,9 +44,21 @@ export interface OpenRouterModel {
     image?: string;
   };
   context_length?: number;
+  architecture?: ModelArchitecture;
+  top_provider?: {
+    context_length?: number;
+    max_completion_tokens?: number;
+    is_moderated?: boolean;
+  };
   [key: string]: unknown;
 }
 
 export interface OpenRouterModelsResponse {
   data: OpenRouterModel[];
+}
+
+// Internal enriched model with computed quality score.
+export interface RankedModel extends OpenRouterModel {
+  sizeB: number;      // estimated params in billions
+  qualityScore: number; // composite: 70% size + 30% context
 }

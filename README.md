@@ -53,12 +53,12 @@ That's it. If Llama 3.3 is rate-limited, always-llm will quietly hand you a Deep
 
 always-llm doesn't just round-robin blindly. It detects what you're trying to do and picks the right free model first:
 
-| Task | What triggers it | Preferred models |
+| Task | What triggers it | Preferred models (tried first) |
 |---|---|---|
-| **Coding** | Code blocks, programming keywords, system prompts with code context | Qwen Coder, DeepSeek V3, CodeStral |
-| **Reasoning** | "step by step", math, logic, "analyze" | DeepSeek R1, QwQ |
-| **Creative** | "write a story", fiction, roleplay | Creative-tuned models |
-| **General** | Everything else | All free models equally |
+| **Coding** | Code blocks, programming keywords, system prompts with code context | Qwen3 Coder 480B, GPT-OSS 120B, DeepSeek V3, CodeStral |
+| **Reasoning** | "step by step", math, logic, "analyze" | LFM-Thinking, DeepSeek R1, QwQ |
+| **Creative** | "write a story", fiction, roleplay | Dolphin/Venice, creative-tuned models |
+| **General** | Everything else | All free models, ranked by quality |
 
 ### How task detection works
 
@@ -78,10 +78,24 @@ Your preferred model → Task-matched models → All other free models
 
 The `x-always-llm-task` response header confirms what task was detected.
 
+### Model quality ranking
+
+Not all free models are equal. Within each tier (task-matched, then general cascade), models are sorted by a **quality score**:
+
+```
+quality = 0.7 × log₂(params_B) + 0.3 × log₂(context_K)
+```
+
+This means a 405B model with 131K context ranks above a 27B model with 262K context, but a 12B model with 128K context still beats a 3B model. The log scale keeps things reasonable — a model twice as big isn't scored twice as high.
+
+### Modality filtering
+
+always-llm only routes to **text-output** models. Audio generators (Lyria), image models, and video models are automatically excluded, even if they're free. The `openrouter/free` meta-router is also excluded (we are the router).
+
 ## How rotation works
 
-1. On boot (cached 1 hour), always-llm calls `GET https://openrouter.ai/api/v1/models` and keeps only models where `pricing.prompt == "0"` AND `pricing.completion == "0"`.
-2. For each incoming request it detects the task category, then builds a rotation order: your preferred model first, then task-matched models, then everything else — skipping any models on cooldown.
+1. On boot (cached 1 hour), always-llm fetches `GET https://openrouter.ai/api/v1/models`, filters to free text-output models, extracts parameter sizes from model IDs, and ranks them by quality score.
+2. For each incoming request it detects the task category, then builds a rotation order: your preferred model first, then task-matched models (best first), then everything else (best first) — skipping any models on cooldown.
 3. On a retryable failure (`402` / `429` / `502` / `503` / `504`), the model goes on a 60-second cooldown and we try the next one. Non-retryable errors (`400`, `401`) are returned to you untouched.
 4. For streaming requests we **only rotate on the initial HTTP status**. Once SSE bytes start flowing we can't safely switch mid-stream — the client has already committed to a conversation.
 
@@ -91,6 +105,7 @@ The `x-always-llm-task` response header confirms what task was detected.
 |---|---|---|---|
 | Auto-rotation on 429 | ✅ | ❌ (you handle it) | ✅ |
 | Task-based smart routing | ✅ | ❌ | ❌ |
+| Quality-ranked rotation | ✅ (bigger models first) | ❌ | ❌ |
 | One-click deploy | ✅ Workers + Vercel | — | ❌ self-host Docker |
 | OpenAI-SDK compatible | ✅ | ✅ | ✅ |
 | Multi-provider | ❌ (OpenRouter only) | ✅ (one API, many providers) | ✅ Gemini / OpenAI / Anthropic |
@@ -150,7 +165,8 @@ Send your OpenRouter key as `Authorization: Bearer sk-or-...`, or set `OPENROUTE
 ## Roadmap
 
 - **v0.1.0**: in-memory cooldown, basic round-robin rotation.
-- **v0.1.1** (you are here): task-based smart routing (coding, reasoning, creative), Claude Code integration.
+- **v0.1.1**: task-based smart routing (coding, reasoning, creative), Claude Code integration.
+- **v0.1.2** (you are here): quality-ranked models (70% size + 30% context), modality filtering, live model list from OpenRouter.
 - **v0.2**: Cloudflare KV-backed cooldowns (shared across isolates).
 - **v0.3**: per-model latency tracking, prefer-fastest routing.
 - **v0.4** (maybe): bring-your-own-provider (Gemini direct, Groq).

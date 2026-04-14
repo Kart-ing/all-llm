@@ -46,6 +46,13 @@ app.get("/v1/models", async (c) => {
       owned_by: "openrouter",
       pricing: m.pricing,
       context_length: m.context_length,
+      // Extra fields not in the OpenAI spec but useful for debugging.
+      // Clients that don't understand them will just ignore them.
+      _always_llm: {
+        size_b: m.sizeB,
+        quality_score: Math.round(m.qualityScore * 100) / 100,
+        modality: m.architecture?.modality,
+      },
     })),
   });
 });

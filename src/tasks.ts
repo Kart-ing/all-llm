@@ -16,8 +16,9 @@ const MODEL_TASK_PATTERNS: Array<{ pattern: RegExp; task: TaskCategory }> = [
   { pattern: /coder/i, task: "coding" },
   { pattern: /codestral/i, task: "coding" },
   { pattern: /starcoder/i, task: "coding" },
-  { pattern: /deepseek-v3/i, task: "coding" },  // DeepSeek V3 is strong at code
+  { pattern: /deepseek-v3/i, task: "coding" },
   { pattern: /codegen/i, task: "coding" },
+  { pattern: /gpt-oss/i, task: "coding" },      // OpenAI open-source models, strong at code
 
   // Reasoning models — chain-of-thought / deep thinking
   { pattern: /deepseek-r1/i, task: "reasoning" },
@@ -25,12 +26,15 @@ const MODEL_TASK_PATTERNS: Array<{ pattern: RegExp; task: TaskCategory }> = [
   { pattern: /o1/i, task: "reasoning" },
   { pattern: /o3/i, task: "reasoning" },
   { pattern: /reasoning/i, task: "reasoning" },
+  { pattern: /thinking/i, task: "reasoning" },   // e.g. lfm-2.5-1.2b-thinking
 
   // Creative / roleplay / writing models
   { pattern: /mytho/i, task: "creative" },
   { pattern: /toppy/i, task: "creative" },
   { pattern: /cinematika/i, task: "creative" },
   { pattern: /creative/i, task: "creative" },
+  { pattern: /dolphin/i, task: "creative" },     // uncensored, good for creative writing
+  { pattern: /venice/i, task: "creative" },
 ];
 
 // Keywords in system/user messages that hint at a task.

@@ -1,6 +1,6 @@
 {
   "name": "always-llm",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "OpenAI-compatible API that never 429s. Rotates across free OpenRouter models automatically.",
   "private": true,
   "type": "module",
