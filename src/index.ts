@@ -4,6 +4,8 @@ import type { Env, ChatCompletionRequest } from "./types.js";
 import { getFreeModels, getFreeModelsFull } from "./models.js";
 import { buildRotation } from "./router.js";
 import { callWithRotation } from "./openrouter.js";
+import { detectTask, parseExplicitTask } from "./tasks.js";
+import type { TaskCategory } from "./tasks.js";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -13,7 +15,7 @@ app.get("/", (c) =>
   c.json({
     name: "always-llm",
     description:
-      "OpenAI-compatible proxy that rotates across free OpenRouter models.",
+      "OpenAI-compatible proxy that rotates across free OpenRouter models with task-aware smart routing.",
     endpoints: ["/v1/chat/completions", "/v1/models"],
     repo: "https://github.com/Kart-ing/all-llm",
   }),
@@ -74,8 +76,18 @@ app.post("/v1/chat/completions", async (c) => {
     );
   }
 
+  // --- Task detection ---
+  // Priority: explicit header > model prefix > auto-detect from messages
+  const taskHeader = c.req.header("x-always-llm-task");
+  const { task: explicitTask, cleanModel } = parseExplicitTask(taskHeader, body.model);
+  const detectedTask: TaskCategory = explicitTask ?? detectTask(body.messages);
+
+  // If the model had a task prefix (e.g. "coding:meta-llama/..."), strip it
+  // before forwarding to OpenRouter.
+  const preferredModel = cleanModel;
+
   const { ids: freeIds } = await getFreeModels(key);
-  const rotation = buildRotation(freeIds, body.model);
+  const rotation = buildRotation(freeIds, preferredModel, detectedTask);
   if (rotation.length === 0) {
     return c.json(
       {
@@ -88,12 +100,15 @@ app.post("/v1/chat/completions", async (c) => {
     );
   }
 
-  const { response, model } = await callWithRotation(rotation, body as unknown as Record<string, unknown>, key, env);
+  // Forward with the cleaned model (no task prefix) in the body
+  const forwardBody = { ...body, model: preferredModel } as unknown as Record<string, unknown>;
+  const { response, model } = await callWithRotation(rotation, forwardBody, key, env);
 
   // Clone headers so we can add our own. We preserve content-type, which
   // matters for SSE streaming vs JSON.
   const outHeaders = new Headers(response.headers);
   outHeaders.set("x-always-llm-model", model);
+  outHeaders.set("x-always-llm-task", detectedTask);
 
   // For streaming responses, pipe the ReadableStream straight through. We
   // deliberately do NOT try to recover mid-stream — see openrouter.ts for

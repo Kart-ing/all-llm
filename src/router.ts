@@ -7,6 +7,9 @@
 // Both are fine for "vibe coding" traffic patterns. v0.2 will move this to
 // Cloudflare KV (or a Durable Object) so cooldowns are truly global.
 
+import type { TaskCategory } from "./tasks.js";
+import { classifyModel } from "./tasks.js";
+
 const cooldowns = new Map<string, number>(); // modelId -> unix ms until which it's on cooldown
 
 // Round-robin pointer across the free-model list. Not per-user — a single
@@ -34,16 +37,24 @@ export function markCooldown(model: string, now: number = Date.now()): void {
 }
 
 // Build the ordered list of models to try for this request.
-//  1. If the caller specified a model, try it first (unless it's on cooldown).
-//  2. Then round-robin through the remaining free models, skipping cooldowns.
-// We advance `rrPointer` once per request so concurrent traffic spreads out.
+//
+// Task-aware rotation order:
+//   1. User's preferred model (if specified and not on cooldown)
+//   2. Task-matched models — models classified as matching the detected task
+//      (round-robin, skip cooldowns)
+//   3. General / remaining models — everything else as fallback cascade
+//
+// This means a coding request will try qwen-coder and deepseek-v3 before
+// falling back to llama-instruct or gemini-flash.
 export function buildRotation(
   freeModels: string[],
   preferred?: string,
+  task: TaskCategory = "general",
 ): string[] {
   const order: string[] = [];
   const seen = new Set<string>();
 
+  // 1. Preferred model first
   if (preferred && !isOnCooldown(preferred)) {
     order.push(preferred);
     seen.add(preferred);
@@ -51,17 +62,53 @@ export function buildRotation(
 
   if (freeModels.length === 0) return order;
 
-  const n = freeModels.length;
-  const start = rrPointer % n;
-  rrPointer = (rrPointer + 1) % n;
+  // Partition models into task-matched and rest.
+  // For "general" task we skip partitioning — just round-robin everything.
+  const taskMatched: string[] = [];
+  const rest: string[] = [];
 
-  for (let i = 0; i < n; i++) {
-    const id = freeModels[(start + i) % n]!;
-    if (seen.has(id)) continue;
-    if (isOnCooldown(id)) continue;
-    order.push(id);
-    seen.add(id);
+  if (task !== "general") {
+    for (const id of freeModels) {
+      if (seen.has(id)) continue;
+      if (classifyModel(id) === task) {
+        taskMatched.push(id);
+      } else {
+        rest.push(id);
+      }
+    }
+  } else {
+    for (const id of freeModels) {
+      if (!seen.has(id)) rest.push(id);
+    }
   }
+
+  // 2. Task-matched models (round-robin within this tier)
+  const n1 = taskMatched.length;
+  if (n1 > 0) {
+    const start = rrPointer % n1;
+    for (let i = 0; i < n1; i++) {
+      const id = taskMatched[(start + i) % n1]!;
+      if (isOnCooldown(id)) continue;
+      order.push(id);
+      seen.add(id);
+    }
+  }
+
+  // 3. Cascade: remaining models (round-robin within this tier)
+  const n2 = rest.length;
+  if (n2 > 0) {
+    const start = rrPointer % n2;
+    for (let i = 0; i < n2; i++) {
+      const id = rest[(start + i) % n2]!;
+      if (seen.has(id)) continue;
+      if (isOnCooldown(id)) continue;
+      order.push(id);
+      seen.add(id);
+    }
+  }
+
+  // Advance the shared round-robin pointer
+  rrPointer = (rrPointer + 1) % Math.max(freeModels.length, 1);
 
   // If literally every model is on cooldown, include the preferred model even
   // if it's cooling down — better to try and fail than to return an empty
