@@ -108,13 +108,13 @@ always-llm only routes to **text-output** models. Audio generators (Lyria), imag
 | Quality-ranked rotation | ✅ (bigger models first) | ❌ | ❌ |
 | One-click deploy | ✅ Workers + Vercel | — | ❌ self-host Docker |
 | OpenAI-SDK compatible | ✅ | ✅ | ✅ |
-| Multi-provider | ❌ (OpenRouter only) | ✅ (one API, many providers) | ✅ Gemini / OpenAI / Anthropic |
+| Multi-provider | ✅ (via OpenRouter — one key, all providers) | ✅ (one API, many providers) | ✅ Gemini / OpenAI / Anthropic (separate keys) |
 | Setup time | ~60 seconds | ~5 minutes | ~30 minutes |
-| Config surface | zero | zero | YAML + keys per provider |
+| Config surface | zero (one key) | zero (one key) | YAML + keys per provider |
 
-**Pick always-llm if** you already have an OpenRouter key and you just want the 429s to stop and the right model for each task.
-**Pick Mirrowel** if you want to juggle keys across multiple providers.
-**Pick raw OpenRouter** if you want to handle rotation yourself.
+**Pick always-llm if** you want one OpenRouter key, zero 429s, and the right model picked for each task automatically.
+**Pick Mirrowel** if you want to bring your own API keys per provider (Gemini, OpenAI, Anthropic separately).
+**Pick raw OpenRouter** if you want multi-provider access but are okay handling rate limits yourself.
 
 ## Works with
 
