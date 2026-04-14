@@ -149,7 +149,8 @@ Send your OpenRouter key as `Authorization: Bearer sk-or-...`, or set `OPENROUTE
 
 ## Roadmap
 
-- **v0.1** (you are here): in-memory cooldown, task-based smart routing.
+- **v0.1.0**: in-memory cooldown, basic round-robin rotation.
+- **v0.1.1** (you are here): task-based smart routing (coding, reasoning, creative), Claude Code integration.
 - **v0.2**: Cloudflare KV-backed cooldowns (shared across isolates).
 - **v0.3**: per-model latency tracking, prefer-fastest routing.
 - **v0.4** (maybe): bring-your-own-provider (Gemini direct, Groq).
