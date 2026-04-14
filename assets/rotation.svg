@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 260" fill="none">
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; }
+    .title { font-size: 14px; font-weight: 600; fill: #c9d1d9; }
+    .label { font-size: 12px; fill: #c9d1d9; }
+    .sublabel { font-size: 10px; fill: #8b949e; }
+    .box { rx: 8; ry: 8; stroke-width: 1.5; }
+    .success { stroke: #3fb950; fill: #0d1117; }
+    .fail { stroke: #f85149; fill: #0d1117; }
+    .neutral { stroke: #58a6ff; fill: #0d1117; }
+    .arrow { stroke: #8b949e; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    .arrow-fail { stroke: #f85149; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead-red); }
+    .status { font-size: 11px; font-weight: 600; }
+    .status-fail { fill: #f85149; }
+    .status-ok { fill: #3fb950; }
+    .cooldown { font-size: 9px; fill: #f85149; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#8b949e"/>
+    </marker>
+    <marker id="arrowhead-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#f85149"/>
+    </marker>
+    <marker id="arrowhead-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#3fb950"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="260" rx="12" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" class="title">How rotation works — your request never fails</text>
+
+  <!-- Request box -->
+  <rect x="20" y="55" width="120" height="50" class="box neutral"/>
+  <text x="80" y="77" text-anchor="middle" class="label">Your Request</text>
+  <text x="80" y="92" text-anchor="middle" class="sublabel">POST /v1/chat</text>
+
+  <!-- Arrow to model 1 -->
+  <path d="M 140 80 L 175 80" class="arrow"/>
+
+  <!-- Model 1 - 429 -->
+  <rect x="185" y="55" width="140" height="50" class="box fail"/>
+  <text x="255" y="74" text-anchor="middle" class="label">Qwen3 Coder 480B</text>
+  <text x="255" y="90" text-anchor="middle" class="status status-fail">429 rate limited</text>
+  <text x="255" y="104" text-anchor="middle" class="cooldown">⏱ cooldown 60s</text>
+
+  <!-- Arrow to model 2 -->
+  <path d="M 325 80 L 355 80" class="arrow-fail"/>
+
+  <!-- Model 2 - 429 -->
+  <rect x="365" y="55" width="140" height="50" class="box fail"/>
+  <text x="435" y="74" text-anchor="middle" class="label">Hermes 3 405B</text>
+  <text x="435" y="90" text-anchor="middle" class="status status-fail">429 rate limited</text>
+  <text x="435" y="104" text-anchor="middle" class="cooldown">⏱ cooldown 60s</text>
+
+  <!-- Arrow to model 3 -->
+  <path d="M 505 80 L 535 80" class="arrow-fail"/>
+
+  <!-- Model 3 - success -->
+  <rect x="545" y="55" width="140" height="50" class="box success"/>
+  <text x="615" y="74" text-anchor="middle" class="label">MiniMax M2.5</text>
+  <text x="615" y="92" text-anchor="middle" class="status status-ok">200 OK ✓</text>
+
+  <!-- Arrow to response -->
+  <path d="M 685 80 L 715 80" stroke="#3fb950" stroke-width="1.5" fill="none" marker-end="url(#arrowhead-green)"/>
+
+  <!-- Response box -->
+  <rect x="725" y="55" width="55" height="50" class="box success"/>
+  <text x="752" y="83" text-anchor="middle" class="label">✓</text>
+
+  <!-- Bottom: model pool -->
+  <text x="400" y="150" text-anchor="middle" class="sublabel">Free model pool (sorted by quality — bigger models tried first)</text>
+
+  <!-- Model chips -->
+  <rect x="40" y="165" width="105" height="32" rx="6" stroke="#58a6ff" stroke-width="1" fill="#161b22"/>
+  <text x="92" y="185" text-anchor="middle" class="sublabel">Qwen3 Coder</text>
+
+  <rect x="155" y="165" width="85" height="32" rx="6" stroke="#58a6ff" stroke-width="1" fill="#161b22"/>
+  <text x="197" y="185" text-anchor="middle" class="sublabel">Hermes 405B</text>
+
+  <rect x="250" y="165" width="100" height="32" rx="6" stroke="#58a6ff" stroke-width="1" fill="#161b22"/>
+  <text x="300" y="185" text-anchor="middle" class="sublabel">Nemotron 120B</text>
+
+  <rect x="360" y="165" width="90" height="32" rx="6" stroke="#3fb950" stroke-width="1" fill="#161b22"/>
+  <text x="405" y="185" text-anchor="middle" class="sublabel">MiniMax M2.5</text>
+
+  <rect x="460" y="165" width="90" height="32" rx="6" stroke="#58a6ff" stroke-width="1" fill="#161b22"/>
+  <text x="505" y="185" text-anchor="middle" class="sublabel">GPT-OSS 120B</text>
+
+  <rect x="560" y="165" width="80" height="32" rx="6" stroke="#58a6ff" stroke-width="1" fill="#161b22"/>
+  <text x="600" y="185" text-anchor="middle" class="sublabel">Llama 3.3 70B</text>
+
+  <rect x="650" y="165" width="60" height="32" rx="6" stroke="#58a6ff" stroke-width="1" fill="#161b22"/>
+  <text x="680" y="185" text-anchor="middle" class="sublabel">Gemma 31B</text>
+
+  <rect x="720" y="165" width="40" height="32" rx="6" stroke="#30363d" stroke-width="1" fill="#161b22"/>
+  <text x="740" y="185" text-anchor="middle" class="sublabel">+18</text>
+
+  <!-- Bottom note -->
+  <text x="400" y="225" text-anchor="middle" class="sublabel">Coding tasks → coding models first · Reasoning tasks → reasoning models first · General → best available</text>
+  <text x="400" y="245" text-anchor="middle" class="sublabel">Models auto-refresh from OpenRouter every hour · Audio/image/video models filtered out</text>
+</svg>

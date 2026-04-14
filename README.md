@@ -1,213 +1,259 @@
+<div align="center">
+
 # always-llm
 
-**OpenAI-compatible API that never 429s. Bring your OpenRouter key, rotate across every free model automatically — with smart task-based routing.**
+**Free LLMs that never fail.**
+
+One OpenRouter key. 25+ free models. Zero 429s. Automatic rotation.
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Kart-ing/all-llm)
+&nbsp;&nbsp;
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Kart-ing/all-llm)
 
----
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)](tsconfig.json)
+[![Cloudflare Workers](https://img.shields.io/badge/Runs%20on-Cloudflare%20Workers-orange)](https://workers.cloudflare.com)
 
-> **[Simple](#simple)** — just want it working? Start here.
->
-> **[Deep Explanation](#deep-explanation)** — want to understand what's under the hood? Skip down.
+<br/>
 
----
+[Simple Setup](#simple-setup) · [How It Works](#how-it-works) · [Works With](#works-with) · [Deep Dive](#deep-dive) · [API Reference](#api-reference)
 
-## Simple
-
-You don't need to understand how this works. You just need free LLMs that never fail.
-
-### 3 steps. That's it.
-
-**Step 1: Get a free OpenRouter key**
-
-Go to [openrouter.ai/keys](https://openrouter.ai/keys), sign up, create an API key. It's free. You'll get something like `sk-or-v1-abc123...`
-
-**Step 2: Deploy your own proxy**
-
-Click one of these buttons:
-
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Kart-ing/all-llm)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Kart-ing/all-llm)
-
-When it asks for `OPENROUTER_API_KEY`, paste your key from Step 1.
-
-> **This is self-hosted.** It deploys to YOUR Cloudflare/Vercel account. Your key stays with you. We never see it, store it, or touch it.
-
-**Step 3: Use it**
-
-Point any tool at your deployed URL + `/v1` and use your OpenRouter key:
-
-| Tool | Where to paste the URL |
-|---|---|
-| **Claude Code** | `OPENAI_BASE_URL` env var — see [`examples/claude-code.md`](examples/claude-code.md) |
-| **Cursor** | Settings → Models → Override OpenAI Base URL |
-| **Cline** | Settings → API Provider → OpenAI Compatible → Base URL |
-| **OpenAI SDK** | `baseURL` parameter |
-| **cURL** | Just hit the endpoint directly |
-
-### What you get
-
-- LLMs **never fail**. If one model is rate-limited, we silently switch to the next one.
-- **25+ free models** from Google, Meta, NVIDIA, Qwen, Mistral, and more — all through one key.
-- **Smart routing** — coding questions go to coding models, reasoning goes to reasoning models, automatically.
-- **Zero config.** No YAML files, no model lists to maintain, no retry logic to write.
-- **Use as much as you want.** It's free models all the way down.
-
-That's it. Go vibe.
+</div>
 
 ---
 
-## Deep Explanation
+## The Problem
 
-Everything below is for people who want to know how the sausage is made.
+You're vibe coding. You're in the zone. Then:
 
-### How it works
+```
+Error: 429 Too Many Requests
+```
 
-always-llm is a tiny proxy that speaks the OpenAI Chat Completions API and forwards your traffic to OpenRouter. When a free model rate-limits you (402 / 429 / 5xx), it transparently falls through to the next free model — so your IDE, agent, or SDK never has to see a failure.
+Your free model hit its rate limit. Your flow is gone. You Google for another free model, swap the config, and 10 minutes later it happens again.
 
-### Smart task-based routing
+**always-llm fixes this.** It sits between your tool and OpenRouter, and when a model says "too many requests," it silently tries the next free model. And the next. And the next. You never see the error.
 
-always-llm doesn't just round-robin blindly. It detects what you're trying to do and picks the right free model first:
+<div align="center">
+<br/>
+<img src="assets/rotation.svg" alt="How rotation works" width="780"/>
+<br/><br/>
+</div>
 
-| Task | What triggers it | Preferred models (tried first) |
+---
+
+## Simple Setup
+
+Three steps. Under 60 seconds.
+
+### 1. Get a free OpenRouter key
+
+Go to **[openrouter.ai/keys](https://openrouter.ai/keys)** → Sign up → Create API key → Copy it (`sk-or-v1-...`)
+
+### 2. Deploy
+
+Click a button above, or:
+
+```bash
+git clone https://github.com/Kart-ing/all-llm && cd all-llm && npm i
+npx wrangler secret put OPENROUTER_API_KEY   # paste your key
+npx wrangler deploy                          # done
+```
+
+### 3. Point your tool at it
+
+Replace your existing base URL with your deployed URL + `/v1`:
+
+```
+https://always-llm.YOUR-NAME.workers.dev/v1
+```
+
+> [!IMPORTANT]
+> **This is 100% self-hosted.** It deploys to YOUR Cloudflare or Vercel account. Your API key stays on YOUR infrastructure. We never see it, store it, or touch it.
+
+That's it. Go vibe. Your LLMs will never fail again.
+
+---
+
+## How It Works
+
+```
+                    ┌──────────────────────┐
+  Your request  ──▶ │     always-llm       │
+                    │                      │
+                    │  1. Detect task type  │
+                    │  2. Pick best model   │──▶  OpenRouter  ──▶  Response
+                    │  3. If 429 → rotate   │
+                    │  4. Never fail        │
+                    └──────────────────────┘
+```
+
+**On startup** — fetches the full model list from OpenRouter, filters to free text-only models, ranks them by quality (bigger = better), caches for 1 hour.
+
+**On each request** — detects what you're doing (coding? reasoning? creative?) and picks the best free model for that task. If it 429s, tries the next one. If that 429s, tries the next. All the way down the list.
+
+**You see:** a normal response, every time.
+
+### Smart Task Routing
+
+Your prompts are automatically analyzed. The right specialist model gets picked first.
+
+| Task | Triggers | Models tried first |
 |---|---|---|
-| **Coding** | Code blocks, programming keywords, system prompts with code context | Qwen3 Coder 480B, GPT-OSS 120B, DeepSeek V3, CodeStral |
-| **Reasoning** | "step by step", math, logic, "analyze" | LFM-Thinking, DeepSeek R1, QwQ |
-| **Creative** | "write a story", fiction, roleplay | Dolphin/Venice, creative-tuned models |
-| **General** | Everything else | All free models, ranked by quality |
+| **Coding** | Code blocks, programming keywords, `function`, `debug`, `implement` | Qwen3 Coder 480B, GPT-OSS 120B |
+| **Reasoning** | `step by step`, math, `analyze`, `prove`, `calculate` | LFM-Thinking, DeepSeek R1 |
+| **Creative** | `story`, `poem`, `imagine`, fiction, roleplay | Dolphin/Venice |
+| **General** | Everything else | All models, best quality first |
 
-#### How task detection works
+> [!NOTE]
+> Task detection is automatic but you can override it with the `x-always-llm-task: coding` header or by prefixing the model: `coding:meta-llama/llama-3.3-70b-instruct:free`
 
-1. **Auto-detect** (default): always-llm scans your system prompt and last user messages for task signals. Code blocks and programming keywords score toward "coding", math/logic terms score toward "reasoning", etc. Needs a clear signal (score > 1) to override the default.
+### Quality Ranking
 
-2. **Explicit header**: Send `x-always-llm-task: coding` to force a task category.
-
-3. **Model prefix**: Prefix your model name: `coding:meta-llama/llama-3.3-70b-instruct:free`. The prefix is stripped before forwarding to OpenRouter.
-
-#### Rotation order with tasks
+Within each tier, models are sorted by quality score:
 
 ```
-Your preferred model → Task-matched models → All other free models
-         ↓                     ↓                      ↓
-   (if rate-limited)    (if all rate-limited)   (last resort cascade)
+score = 0.7 × log₂(params) + 0.3 × log₂(context_window)
 ```
 
-The `x-always-llm-task` response header confirms what task was detected.
+Bigger, smarter models are tried first. A 480B MoE model beats a 70B dense model, which beats a 12B model. You always get the best available free model for your task.
 
-### Model quality ranking
+---
 
-Not all free models are equal. Within each tier (task-matched, then general cascade), models are sorted by a **quality score**:
+## Works With
 
-```
-quality = 0.7 × log₂(params_B) + 0.3 × log₂(context_K)
-```
+| Tool | Setup |
+|---|---|
+| **Claude Code** | [`examples/claude-code.md`](examples/claude-code.md) — set `OPENAI_BASE_URL` env var |
+| **Cursor** | Settings → Models → Override OpenAI Base URL |
+| **Cline** | Settings → OpenAI Compatible → Base URL |
+| **Continue.dev** | [`examples/cline.md`](examples/cline.md) — config snippet included |
+| **OpenAI SDK** | Set `baseURL` to your deployed URL + `/v1` |
+| **Vercel AI SDK** | Drop-in via `@ai-sdk/openai` with custom `baseURL` |
+| **cURL** | Just hit the endpoint |
+| **Anything OpenAI-compatible** | If it has a base URL field, it works |
 
-This means a 405B model with 131K context ranks above a 27B model with 262K context, but a 12B model with 128K context still beats a 3B model. The log scale keeps things reasonable — a model twice as big isn't scored twice as high.
-
-### Modality filtering
-
-always-llm only routes to **text-output** models. Audio generators (Lyria), image models, and video models are automatically excluded, even if they're free. The `openrouter/free` meta-router is also excluded (we are the router).
-
-### How rotation works
-
-1. On boot (cached 1 hour), always-llm fetches `GET https://openrouter.ai/api/v1/models`, filters to free text-output models, extracts parameter sizes from model IDs, and ranks them by quality score.
-2. For each incoming request it detects the task category, then builds a rotation order: your preferred model first, then task-matched models (best first), then everything else (best first) — skipping any models on cooldown.
-3. On a retryable failure (`402` / `429` / `502` / `503` / `504`), the model goes on a 60-second cooldown and we try the next one. Non-retryable errors (`400`, `401`) are returned to you untouched.
-4. For streaming requests we **only rotate on the initial HTTP status**. Once SSE bytes start flowing we can't safely switch mid-stream — the client has already committed to a conversation.
-
-### Why not just use OpenRouter directly?
-
-| Feature | **always-llm** | Raw OpenRouter | [Mirrowel/LLM-API-Key-Proxy](https://github.com/Mirrowel/LLM-API-Key-Proxy) |
-|---|---|---|---|
-| Auto-rotation on 429 | ✅ | ❌ (you handle it) | ✅ |
-| Task-based smart routing | ✅ | ❌ | ❌ |
-| Quality-ranked rotation | ✅ (bigger models first) | ❌ | ❌ |
-| One-click deploy | ✅ Workers + Vercel | — | ❌ self-host Docker |
-| OpenAI-SDK compatible | ✅ | ✅ | ✅ |
-| Multi-provider | ✅ (via OpenRouter — one key, all providers) | ✅ (one API, many providers) | ✅ Gemini / OpenAI / Anthropic (separate keys) |
-| Setup time | ~60 seconds | ~5 minutes | ~30 minutes |
-| Config surface | zero (one key) | zero (one key) | YAML + keys per provider |
-
-**Pick always-llm if** you want one OpenRouter key, zero 429s, and the right model picked for each task automatically.
-**Pick Mirrowel** if you want to bring your own API keys per provider (Gemini, OpenAI, Anthropic separately).
-**Pick raw OpenRouter** if you want multi-provider access but are okay handling rate limits yourself.
-
-### Works with
-
-- ✅ **Claude Code** — see [`examples/claude-code.md`](examples/claude-code.md)
-- ✅ **Cursor** — see [`examples/cursor.md`](examples/cursor.md)
-- ✅ **Cline** — see [`examples/cline.md`](examples/cline.md)
-- ✅ **Continue.dev** — config snippet in the Cline guide
-- ✅ **Vercel AI SDK** — drop-in via `@ai-sdk/openai` with custom `baseURL`
-- ✅ **OpenAI SDK** (JS, Python, anything)
-- ✅ Any OpenAI-compatible HTTP client — plain cURL works too
-
-### Use it with the OpenAI SDK
+### Quick Example (OpenAI SDK)
 
 ```ts
 import OpenAI from "openai";
 
 const client = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,          // your sk-or-... key
-  baseURL: "https://always-llm.yourname.workers.dev/v1",
+  apiKey: "sk-or-...",                                    // your OpenRouter key
+  baseURL: "https://always-llm.yourname.workers.dev/v1", // your deployed URL
 });
 
 const res = await client.chat.completions.create({
   model: "meta-llama/llama-3.3-70b-instruct:free",
   messages: [{ role: "user", content: "hello" }],
 });
-
-console.log(res.choices[0].message.content);
+// If Llama is rate-limited, you still get a response — from whichever model was available.
+// Check res.headers['x-always-llm-model'] to see which one served it.
 ```
 
-That's it. If Llama 3.3 is rate-limited, always-llm will quietly hand you a DeepSeek R1 response instead. The `x-always-llm-model` response header tells you which model actually served the request.
+---
 
-### Local dev
+## Why always-llm?
 
-```bash
-cp .dev.vars.example .dev.vars
-# edit .dev.vars, add your OPENROUTER_API_KEY
+| | **always-llm** | Raw OpenRouter | [Mirrowel/LLM-API-Key-Proxy](https://github.com/Mirrowel/LLM-API-Key-Proxy) |
+|---|---|---|---|
+| Auto-rotation on 429 | ✅ | ❌ | ✅ |
+| Task-based routing | ✅ | ❌ | ❌ |
+| Quality-ranked rotation | ✅ | ❌ | ❌ |
+| One-click deploy | ✅ Workers + Vercel | — | ❌ self-host Docker |
+| Multi-provider | ✅ one key, all providers | ✅ | ✅ separate keys |
+| Setup time | **~60 seconds** | ~5 min | ~30 min |
+| Config surface | **zero** | zero | YAML + keys per provider |
 
-npm run dev        # wrangler dev on :8787
-npm run build      # tsc --noEmit
-```
+---
 
-### API reference
+<details>
+<summary><h2>Deep Dive</h2></summary>
 
-#### `POST /v1/chat/completions`
+### Rotation Mechanics
 
-Identical to OpenAI's endpoint. The `model` field is a *preference*, not a requirement — rotation may substitute a different free model.
+1. **Fetch** — On first request (then cached 1hr), GET `https://openrouter.ai/api/v1/models`. Filter: `pricing.prompt == "0"` AND `pricing.completion == "0"` AND `output_modalities == ["text"]`. Exclude `openrouter/free` (we are the router).
+2. **Rank** — Extract parameter count from model IDs (handles MoE patterns like `480B-A35B`). Score by `0.7 × log₂(size) + 0.3 × log₂(context)`. Sort descending.
+3. **Route** — Detect task from messages. Build rotation: preferred model → task-matched models (best first) → all others (best first). Skip models on cooldown.
+4. **Try** — Call OpenRouter. If response is `402`, `429`, `502`, `503`, or `504`: put model on 60s cooldown, try next. If `400` or `401`: return error to caller (that's your problem, not a rate limit).
+5. **Stream** — If `stream: true`, we only rotate on the initial HTTP status. Once SSE bytes start flowing, we can't switch mid-stream — the client already has half a response from one model. This is a deliberate constraint, not a bug.
+
+### Cooldown System
+
+- In-memory `Map<modelId, cooldownUntilMs>`. Simple, fast, good enough for v0.1.
+- Different Cloudflare Worker isolates have independent cooldown maps. This is fine — at free-tier traffic levels you're usually hitting the same isolate.
+- v0.2 will use Cloudflare KV for global cooldowns.
+
+### Modality Filtering
+
+Not all "free" models are useful for chat. Lyria (Google's music model) is free but outputs audio. Image generators are free but don't respond to text prompts sensibly. We filter `output_modalities` to `["text"]` only.
+
+### Fallback List
+
+If OpenRouter's `/models` endpoint is down, we fall back to a hardcoded list of 21 known-free models (updated April 2026). This list is cached for only 5 minutes so we retry the live endpoint quickly.
+
+### Size Extraction
+
+Model IDs follow patterns: `meta-llama/llama-3.3-70b-instruct:free` → 70B. MoE models: `qwen/qwen3-coder-480b-a35b:free` → 480B total. For models without sizes in their ID (MiniMax, Elephant), we maintain a `KNOWN_SIZES` override map.
+
+</details>
+
+---
+
+## API Reference
+
+### `POST /v1/chat/completions`
+
+OpenAI-compatible. `model` is a preference — rotation may use a different one.
 
 **Response headers:**
-- `x-always-llm-model` — which model actually served the request
-- `x-always-llm-task` — the detected task category (`coding`, `reasoning`, `creative`, `general`)
+| Header | Description |
+|---|---|
+| `x-always-llm-model` | Which model actually served the request |
+| `x-always-llm-task` | Detected task: `coding`, `reasoning`, `creative`, `general` |
 
-**Custom request headers:**
-- `x-always-llm-task` — force a task category (overrides auto-detection)
+**Request headers (optional):**
+| Header | Description |
+|---|---|
+| `x-always-llm-task` | Force a task category (overrides auto-detection) |
 
-**Model prefix syntax:**
-- `coding:model-id` — force coding task, strip prefix before forwarding
-- `reasoning:model-id` — force reasoning task
-- `creative:model-id` — force creative task
+**Model prefix syntax:** `coding:model-id`, `reasoning:model-id`, `creative:model-id` — prefix stripped before forwarding.
 
-#### `GET /v1/models`
+### `GET /v1/models`
 
-Returns the current list of free OpenRouter models the proxy will rotate through.
+Returns free text-output models, sorted by quality score. Each model includes `_always_llm.size_b` and `_always_llm.quality_score`.
 
-#### Authentication
+### Authentication
 
-Send your OpenRouter key as `Authorization: Bearer sk-or-...`, or set `OPENROUTER_API_KEY` as a Worker secret and it'll be used automatically for any unauthenticated request.
+`Authorization: Bearer sk-or-...` header, or set `OPENROUTER_API_KEY` as a Worker secret for keyless client access.
 
-### Roadmap
+---
 
-- **v0.1.0**: in-memory cooldown, basic round-robin rotation.
-- **v0.1.1**: task-based smart routing (coding, reasoning, creative), Claude Code integration.
-- **v0.1.2** (you are here): quality-ranked models (70% size + 30% context), modality filtering, live model list from OpenRouter.
-- **v0.2**: Cloudflare KV-backed cooldowns (shared across isolates).
-- **v0.3**: per-model latency tracking, prefer-fastest routing.
-- **v0.4** (maybe): bring-your-own-provider (Gemini direct, Groq).
+## Local Dev
 
-## License
+```bash
+cp .dev.vars.example .dev.vars     # add your OPENROUTER_API_KEY
+npm run dev                        # wrangler dev on :8787
+npm run build                      # tsc --noEmit (strict mode, zero errors)
+```
 
-MIT. See [LICENSE](LICENSE).
+---
+
+## Roadmap
+
+| Version | Status | What |
+|---|---|---|
+| v0.1.0 | ✅ | In-memory cooldown, round-robin rotation |
+| v0.1.1 | ✅ | Task-based smart routing, Claude Code integration |
+| v0.1.2 | ✅ **current** | Quality-ranked models, modality filtering, live model list |
+| v0.2 | planned | Cloudflare KV-backed cooldowns (shared across isolates) |
+| v0.3 | planned | Per-model latency tracking, prefer-fastest routing |
+| v0.4 | maybe | Bring-your-own-provider (Gemini direct, Groq) |
+
+---
+
+<div align="center">
+
+MIT License · Built for vibe coders
+
+</div>
