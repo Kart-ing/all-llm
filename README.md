@@ -30,9 +30,9 @@ You're vibe coding. You're in the zone. Then:
 Error: 429 Too Many Requests
 ```
 
-Your free model hit its rate limit. Your flow is gone. You Google for another free model, swap the config, and 10 minutes later it happens again.
+Your free model hit its rate limit. Maybe it's your app — the chatbot you vibe-coded last weekend, the AI feature you shipped on a free tier. Maybe it's your IDE. Either way, your flow is gone. You Google for another free model, swap the config, and 10 minutes later it happens again.
 
-**always-llm fixes this.** It sits between your tool and OpenRouter, and when a model says "too many requests," it silently tries the next free model. And the next. And the next. You never see the error.
+**always-llm fixes this.** It's an OpenAI-compatible proxy that sits between your project (or your tools) and OpenRouter. When a model says "too many requests," it silently tries the next free model. And the next. And the next. Your app stays up. Your IDE keeps working. You never see the error.
 
 <div align="center">
 <br/>
@@ -60,13 +60,24 @@ npx wrangler secret put OPENROUTER_API_KEY   # paste your key
 npx wrangler deploy                          # done
 ```
 
-### 3. Point your tool at it
+### 3. Use it
 
-Replace your existing base URL with your deployed URL + `/v1`:
+Your deployed URL is your new OpenAI-compatible base URL:
 
 ```
 https://always-llm.YOUR-NAME.workers.dev/v1
 ```
+
+**In your project** — drop it in anywhere you'd use the OpenAI SDK. Your vibe-coded app gets free, reliable LLM calls without ever hitting a rate limit:
+
+```ts
+const client = new OpenAI({
+  apiKey: "sk-or-...",
+  baseURL: "https://always-llm.YOUR-NAME.workers.dev/v1",
+});
+```
+
+**In your IDE** — also works as the backend for Cursor, Claude Code, Cline, or any OpenAI-compatible coding tool. Swap the base URL and keep vibing.
 
 > [!IMPORTANT]
 > **This is 100% self-hosted.** It deploys to YOUR Cloudflare or Vercel account. Your API key stays on YOUR infrastructure. We never see it, store it, or touch it.
@@ -154,6 +165,14 @@ const res = await client.chat.completions.create({
 ---
 
 ## Why always-llm?
+
+<div align="center">
+<br/>
+<img src="assets/spiderman.jpg" alt="Your app, always-llm, and OpenRouter all pointing at each other" width="400"/>
+<br/>
+<em>Your app → always-llm → OpenRouter → the actual model. It's proxies all the way down.</em>
+<br/><br/>
+</div>
 
 | | **always-llm** | Raw OpenRouter | [Mirrowel/LLM-API-Key-Proxy](https://github.com/Mirrowel/LLM-API-Key-Proxy) |
 |---|---|---|---|
